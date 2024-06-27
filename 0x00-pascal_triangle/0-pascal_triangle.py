@@ -1,4 +1,11 @@
 #!/usr/bin/python3
+"""
+0-pascal_triangle.py - <This module defines a function that
+returns a list of integers
+representing the Pascal's Triangle of 'n'>
+"""
+
+
 def pascal_triangle(n):
     if n <= 0:
         return []
@@ -8,7 +15,7 @@ def pascal_triangle(n):
     for i in range(1, n):
         row = [1]  # First element of each row is always 1
         for j in range(1, i):
-            row.append(triangle[i-1][j-1] + triangle[i-1][j])
+            row.append(row[-1] * (i - j + 1) // j)
         row.append(1)  # Last element of each row is always 1
         triangle.append(row)
 
