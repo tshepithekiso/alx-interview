@@ -1,64 +1,62 @@
 #!/usr/bin/python3
 import sys
-import re
 import signal
+import re
+
+# Initialize variables
+total_size = 0
+status_counts = {
+    "200": 0,
+    "301": 0,
+    "400": 0,
+    "401": 0,
+    "403": 0,
+    "404": 0,
+    "405": 0,
+    "500": 0
+}
+line_count = 0
+
+# Regular expression to match the log format
+log_pattern = re.compile(
+    r'^\d+\.\d+\.\d+\.\d+ - \[\S+ \S+\] "GET /projects/260 HTTP/1.1" (\d+) '
+    r'(\d+)$'
+)
 
 
-# Define a signal handler for CTRL+C
-def signal_handler(signal, frame):
-    print_metrics()
+def print_stats():
+    """Prints the current statistics"""
+    print(f"File size: {total_size}")
+    for status in sorted(status_counts.keys()):
+        if status_counts[status] > 0:
+            print(f"{status}: {status_counts[status]}")
+
+
+def signal_handler(sig, frame):
+    """Handles the keyboard interruption signal"""
+    print_stats()
     sys.exit(0)
 
 
-# Initialize metrics
-total_file_size = 0
-status_codes = {}
-
-
-# Define a function to print the metrics
-def print_metrics():
-    print(f"File size: {total_file_size}")
-    for status_code in sorted(status_codes):
-        print(f"{status_code}: {status_codes[status_code]}")
-
-
-# Set the signal handler for CTRL+C
+# Register the signal handler
 signal.signal(signal.SIGINT, signal_handler)
 
+# Read from stdin line by line
+for line in sys.stdin:
+    match = log_pattern.match(line)
+    if match:
+        status_code = match.group(1)
+        file_size = int(match.group(2))
 
-# Read and process the input lines
-line_count = 0
-while True:
-    try:
-        line = sys.stdin.readline().strip()
-        if not line:
-            break
-
-        # Validate the format of the line
-        match = re.match(
-            r"(\d+\.\d+\.\d+\.\d+) - \[(.*)\] \"GET /projects/260 HTTP/1.1\" "
-            r"(\d+) (\d+)",
-            line
-        )
-        if not match:
-            continue
-
-        # Extract the data points
-        ip_address, date, status_code, file_size = match.groups()
-        status_code = int(status_code)
-        file_size = int(file_size)
-
-        # Update the metrics
-        total_file_size += file_size
-        status_codes[status_code] = status_codes.get(status_code, 0) + 1
+        total_size += file_size
+        if status_code in status_counts:
+            status_counts[status_code] += 1
 
         line_count += 1
-        if line_count % 10 == 0:
-            print_metrics()
 
-    except (ValueError, KeyboardInterrupt):
-        print_metrics()
-        break
-    except Exception as e:
-        print(f"Error: {e}")
-        continue
+        # Print stats every 10 lines
+        if line_count % 10 == 0:
+            print_stats()
+
+# Print final stats
+print_stats()
