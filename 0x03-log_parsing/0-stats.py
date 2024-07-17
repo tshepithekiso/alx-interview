@@ -1,62 +1,51 @@
 #!/usr/bin/python3
+"""Reads stdin line by line and computes metrics"""
 import sys
-import signal
-import re
 
-# Initialize variables
-total_size = 0
-status_counts = {
-    "200": 0,
-    "301": 0,
-    "400": 0,
-    "401": 0,
-    "403": 0,
-    "404": 0,
-    "405": 0,
-    "500": 0
-}
+
 line_count = 0
+total_size = 0
+status_codes = {
+    '200': 0,
+    '301': 0,
+    '400': 0,
+    '401': 0,
+    '403': 0,
+    '404': 0,
+    '405': 0,
+    '500': 0
+}
 
-# Regular expression to match the log format
-log_pattern = re.compile(
-    r'^\d+\.\d+\.\d+\.\d+ - \[\S+ \S+\] "GET /projects/260 HTTP/1.1" (\d+) '
-    r'(\d+)$'
-)
 
-
-def print_stats():
-    """Prints the current statistics"""
+def print_status():
+    """Helper function to output status"""
     print(f"File size: {total_size}")
-    for status in sorted(status_counts.keys()):
-        if status_counts[status] > 0:
-            print(f"{status}: {status_counts[status]}")
+
+    for code, count in status_codes.items():
+        if count > 0:
+            print(f"{code}: {count}")
 
 
-def signal_handler(sig, frame):
-    """Handles the keyboard interruption signal"""
-    print_stats()
-    sys.exit(0)
+try:
+    for line in sys.stdin:
+        if line_count == 10:
+            print_status()
+            line_count = 0
 
+        line = line.rstrip()
+        line_parts = line.split()
 
-# Register the signal handler
-signal.signal(signal.SIGINT, signal_handler)
+        if len(line_parts) > 4:
+            code = line_parts[-2]
+            total_size += int(line_parts[-1])
 
-# Read from stdin line by line
-for line in sys.stdin:
-    match = log_pattern.match(line)
-    if match:
-        status_code = match.group(1)
-        file_size = int(match.group(2))
+            # Collate the number of lines per status code
+            if code in status_codes:
+                status_codes[code] += 1
 
-        total_size += file_size
-        if status_code in status_counts:
-            status_counts[status_code] += 1
-
-        line_count += 1
-
-        # Print stats every 10 lines
-        if line_count % 10 == 0:
-            print_stats()
-
-# Print final stats
-print_stats()
+            # Increment the log count
+            line_count += 1
+except Exception:
+    pass
+finally:
+    print_status()
